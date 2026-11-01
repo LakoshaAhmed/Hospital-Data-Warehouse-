@@ -1,0 +1,11 @@
+# generated data (hundreds of MB, recreate with src/generate_data.py)
+data/
+spark-warehouse/
+metastore_db/
+derby.log
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/

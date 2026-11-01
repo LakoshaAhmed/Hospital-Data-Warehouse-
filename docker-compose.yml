@@ -1,0 +1,68 @@
+# Local big-data stack: HDFS (1 namenode + 1 datanode), Spark (PySpark) and ClickHouse.
+# Start:  docker compose up -d
+# Stop:   docker compose down        (add -v to also delete the stored data)
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    hostname: namenode
+    ports:
+      - "9870:9870"   # HDFS web UI: http://localhost:9870
+      - "9000:9000"
+    environment:
+      - CLUSTER_NAME=hospital
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - namenode:/hadoop/dfs/name
+      - ./data:/data            # generated CSV files, to upload into HDFS
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    hostname: datanode
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870
+    env_file:
+      - ./hadoop.env
+    volumes:
+      - datanode:/hadoop/dfs/data
+    depends_on:
+      - namenode
+
+  spark:
+    image: quay.io/jupyter/pyspark-notebook:spark-3.5.5
+    container_name: spark
+    ports:
+      - "8888:8888"   # Jupyter (token in: docker logs spark)
+      - "4040:4040"   # Spark UI while a job runs
+    volumes:
+      - ./:/home/jovyan/project
+    working_dir: /home/jovyan/project
+    depends_on:
+      - namenode
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: clickhouse
+    hostname: clickhouse
+    ports:
+      - "8123:8123"   # HTTP interface (used by scripts/benchmark.py)
+      - "9001:9000"   # native protocol
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=clickhouse
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+      - ./sql:/sql
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+volumes:
+  namenode:
+  datanode:
+  clickhouse:
